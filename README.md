@@ -39,6 +39,29 @@ reset-buddy.bat --dry-run  :: 预览变更，不写入
 4. 写入新 userID，移除 companion 字段
 5. 验证写入结果
 
+## userID 更改影响范围
+
+`userID` 在 Claude Code 中除了宠物系统外，还用于以下场景：
+
+| 场景 | 文件 | 用途 |
+|------|------|------|
+| 遥测/分析 | `firstPartyEventLogger.ts` | `user_id` — 用户行为追踪 |
+| 遥测/分析 | `datadog.ts` | `getUserBucket()` — A/B 实验分桶（hash(userID) % 100） |
+| API 调用 | `claude.ts` | `device_id` — 请求标识 |
+| 用户数据 | `user.ts` | `getCoreUserData()` — 核心用户信息聚合 |
+| 遥测属性 | `telemetryAttributes.ts` | 遥测字段 |
+| 宠物系统 | `companion.ts` | 确定性生成宠物属性 |
+
+### 对未登录用户的影响
+
+- **不会丢失 API 访问** — 认证依赖 `ANTHROPIC_AUTH_TOKEN`，与 userID 无关
+- **不会丢失项目配置** — 项目级信任等存储在 `projects` 字段，不受影响
+- **不会丢失全局设置** — 主题、快捷键等不受影响
+- **遥测数据断裂** — 服务端会将其视为新设备（若已关闭非必要流量则无影响）
+- **A/B 实验分桶变化** — 可能进入不同的功能开关分组
+
+**结论：对未登录的本地中转用户，改 userID 几乎没有副作用，唯一实质变化是宠物重新孵化。**
+
 ## 执行后
 
 重启 Claude Code，运行 `/buddy` 即可孵化新的伴侣宠物。
